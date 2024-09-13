@@ -1,0 +1,123 @@
+# Loading in the data
+```{r setup, include=FALSE}
+library(readr)
+EPI_data <- read_csv("epi2024results06022024.csv")
+attach(EPI_data)
+```
+
+# Removing NA Values
+```{r}
+tf <- is.na(EPI.new) # records True values if the value is NA
+EPI.new.no_NA <- EPI.new[!tf] # filters out NA values, new array 
+```
+
+# Exploring the distribution
+```{r}
+summary(EPI.new) # stats
+fivenum(EPI.new,na.rm=TRUE)
+stem(EPI.new) # stem and leaf plot
+hist(EPI.new)
+hist(EPI.new, seq(20., 80., 1.0), prob=TRUE)
+lines(density(EPI.new,na.rm=TRUE,bw=1.)) # or try bw=“SJ”
+rug(EPI.new)
+```
+
+# Creating a Box Plot of the Data
+```{r}
+boxplot(EPI.new, APO.new) 
+```
+
+# More Detailed Histogram
+```{r}
+hist(EPI.new, seq(20., 80., 1.0), prob=TRUE)
+lines(density(EPI.new,na.rm=TRUE,bw=1.))
+rug(EPI.new)
+```
+
+
+# More Detailed Histogram
+```{r}
+hist(EPI.new, seq(20., 80., 1.0), prob=TRUE)
+lines(density(EPI.new,na.rm=TRUE,bw="SJ"))
+rug(EPI.new)
+```
+
+# More Detailed Histogram
+```{r}
+hist(EPI.new, seq(20., 80., 1.0), prob=TRUE)
+x<-seq(20,80,1)
+q<-dnorm(x,mean=42, sd=5,log=FALSE)
+lines(x,.4*q)
+q<-dnorm(x,mean=65, sd=5,log=FALSE)
+lines(x,.12*q) 
+```
+
+## Excercise 2: Fitting a Distribution Beyond Histograms
+
+# Cumulative Density Function
+```{r}
+plot(ecdf(EPI.new), do.points=FALSE, verticals=TRUE)
+```
+
+# Quantile-Quantile
+```{r}
+qqnorm(EPI.new); qqline(EPI.new)
+```
+
+# Quantile-Quantile Plot Against Normal and T Distributions
+```{r}
+qqplot(rnorm(250), EPI.new, xlab = "Q-Q plot for norm dsn")
+qqline(EPI.new)
+
+qqplot(rt(250, df = 5), EPI.new, xlab = "Q-Q plot for t dsn")
+qqline(EPI.new)
+```
+
+# Excercise 2a: Fitting a Distribution for variable APO
+```{r}
+# cumulative density function
+plot(ecdf(APO.new), do.points=FALSE, verticals=TRUE)
+
+# Quantile-Quantile plot
+qqnorm(APO.new); qqline(APO.new)
+
+# Quantile plot against normal distribution
+qqplot(rnorm(250), APO.new, xlab = "Q-Q plot for norm dsn")
+qqline(APO.new)
+
+# Quantile plot against T distribution
+qqplot(rt(250, df = 5), APO.new, xlab = "Q-Q plot for t dsn")
+qqline(APO.new)
+```
+
+# Excercise 2a: Fitting a Distribution for variable APOe
+```{r}
+# cumulative density function
+plot(ecdf(MHP.new), do.points=FALSE, verticals=TRUE)
+
+# Quantile-Quantile plot
+qqnorm(MHP.new); qqline(MHP.new)
+
+# Quantile plot against normal distribution
+qqplot(rnorm(250), MHP.new, xlab = "Q-Q plot for norm dsn")
+qqline(MHP.new)
+
+# Quantile plot against T distribution
+qqplot(rt(250, df = 5), MHP.new, xlab = "Q-Q plot for t dsn")
+qqline(MHP.new)
+```
+
+# Quantile-Quantile
+```{r}
+qqnorm(EPI.new); qqline(EPI.new)
+```
+
+# Quantile-Quantile
+```{r}
+qqnorm(EPI.new); qqline(EPI.new)
+```
+
+# Quantile-Quantile
+```{r}
+qqnorm(EPI.new); qqline(EPI.new)
+```

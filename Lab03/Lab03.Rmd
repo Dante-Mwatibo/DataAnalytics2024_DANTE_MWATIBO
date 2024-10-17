@@ -1,0 +1,114 @@
+```{r}
+library(ggplot2)
+library(class)
+## Call the NaiveBayes Classifier Package e1071, which auto calls the Class package ##
+library("e1071")
+
+#load in epi
+epi.results <- read.csv("epi2024results_DA_F24_lab03.csv", header=TRUE)
+
+# split up the data into 2 regions
+epi.results.gw <- epi.results[epi.results$region == "Global West",]
+epi.results.ee <- epi.results[epi.results$region == "Eastern Europe",]
+
+# histogram for Global West region
+hist(x=epi.results.gw$PAE, prob=TRUE) 
+lines(density(epi.results.gw$PAE,na.rm=TRUE,bw="SJ"))
+
+# histogram for Eastern Europe region
+hist(x=epi.results.ee$PAE, prob=TRUE) 
+lines(density(epi.results.ee$PAE,na.rm=TRUE,bw="SJ"))
+```
+
+## Plot QQ plots for both variables compared to known probability distributions.
+```{r}
+### Q-Q Plot for Global West compared to the quantile normal distribution
+qqplot(qnorm(ppoints(1000)), epi.results.gw$PAE)
+qqline(epi.results.gw$PAE)
+
+### Q-Q Plot for Eastern Europe compared to the quantile normal distribution
+qqplot(qnorm(ppoints(1000)), epi.results.ee$PAE)
+qqline(epi.results.ee$PAE)
+```
+
+# Linear Models
+## Choose a subset of 5 variables (excluding EPI) and using the formula EPI~VAR1+VAR2+VAR3+VAR4+VAR5, fit a linear model and identify which variable most significantly influences EPI. Plot that variable with another and overlay the fitted line.
+
+```{r}
+### linear model with a subset of 5 variables
+epi.lm <- lm(EPI~ECO+TBN+PHL+RLI+BER,epi.results)
+epi.lm$coefficients
+```
+It is clear that ECO has the most significant incluence on EPI. This is due to it having the highest absolute value coefficient.
+
+## Plot the most influential variable for EPI (ECO) with another and overlay the fitted line.
+```{r}
+### scatterplot of EPI and ECO
+ggplot(epi.results, aes(x=ECO, y=BER)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red")
+```
+
+## Repeat the previous model with a subset of 1 region and in 1-2 sentences explain which model is a better fit and why you think that is the case
+```{r}
+### linear model with a subset of 5 variables that's a subset of the Eastern European region
+epi.lm.ee <- lm(EPI~ECO+TBN+PHL+RLI+BER,epi.results.ee)
+epi.lm.ee$coefficients
+### scatterplot of EPI and ECO
+ggplot(epi.results.ee, aes(x=ECO, y=BER)) +
+  geom_point() +
+  geom_smooth(method = "lm", color = "red")
+```
+The ECO voriable continues to be the most influential variable on predicting EPI, as it has the highest absolute value for its coefficient. I find the dataset with the every region to be a better dataset. While one might expect the subset of 1 particular region to have a better predictor, it appears given the graphs made that there is a higher correlation/predictive ability with the entire dataset when compared with the Eastern European only dataset.
+
+# Classification (kNN)
+## Choose a subset of 5 variables and filter the subset by region keeping 3 regions out of 8 (representing 3 classes), then train a kNN model to predict the region based on these variables. Evaluate the model using a contingency matrix and calculate the accuracy of correct classifications.
+```{r}
+epi.results.3r <- epi.results[epi.results$region %in% c("Southern Asia", "Eastern Europe", "Greater Middle East"), c("region", "ECO", "TBN", "PHL", "RLI", "BER")]
+epi.results.3r <- remove_missing(epi.results.3r)
+ind <- sample(2, nrow(epi.results.3r), replace=TRUE, prob=c(0.7, 0.3))
+KNNtrain <- remove_missing(epi.results.3r[ind==1,])
+KNNtest <- remove_missing(epi.results.3r[ind==2,])
+
+KNNpred <- knn(train = KNNtrain[2:6], test = KNNtest[2:6], cl = KNNtrain$region, k = 3)
+accuracy <- (table(KNNpred == KNNtest$region)["TRUE"] / nrow(KNNtest))
+table(KNNpred, KNNtest$region)
+accuracy
+```
+The accuracy of correct classifications appears to be ~0.6666667, or 2/3.
+
+## Repeat the previous model with the same variables for another set of 3 other regions and evaluate. In 1-2 sentences explain which model is better and why you think that is the case.
+```{r}
+epi.results.3r2 <- epi.results[epi.results$region %in% c("Asia-Pacific", "Latin America & Caribbean", "Sub-Saharan Africa"), c("region", "ECO", "TBN", "PHL", "RLI", "BER")]
+epi.results.3r2 <- remove_missing(epi.results.3r2)
+ind <- sample(2, nrow(epi.results.3r2), replace=TRUE, prob=c(0.7, 0.3))
+KNNtrain2 <- remove_missing(epi.results.3r2[ind==1,])
+KNNtest2 <- remove_missing(epi.results.3r2[ind==2,])
+
+KNNpred2 <- knn(train = KNNtrain2[2:6], test = KNNtest2[2:6], cl = KNNtrain2$region, k = 3)
+accuracy2 <- (table(KNNpred2 == KNNtest2$region)["TRUE"] / nrow(KNNtest2))
+table(KNNpred2, KNNtest2$region)
+accuracy2
+```
+The accuracy of correct classifications appears to be 0.375, or 3/8. I believe the other model is better, largely because this model's accuracy of 0.375 is so much lower than the other model's accuracy of 0.667. I also don't believe that the other model has a high enough accuracy to where I would be worried about overfitting.
+
+# Clustering (kNN)
+## Fit a k-means model for a subset of 5 variables for 2 different groups of regions (3 regions). Compare the performance of the models using their within cluster sum of squares.
+```{r}
+results <- kmeans(x=epi.results.3r[2:6], centers=3)
+results2 <- kmeans(x=epi.results.3r2[2:6], centers=3)
+results$tot.withinss
+results2$tot.withinss
+```
+The data indicates that the second model, which included the regions "Asia-Pacific", "Latin America & Caribbean", and "Sub-Saharan Africa", performed worse than the first model, which contained the regions "Southern Asia", "Eastern Europe", and "Greater Middle East". While this number doesn't tell the whole story, it is one indicator that clusters are more properly identified, as the lower this number, the closer the individual points in the cluster are to every other point. It is also worth pointing out that there is a large difference in the size of the two samples, with epi.results.3r2 having a sample over twice the size of epi.results.3r.
+
+```{r}
+k.max = 8
+wss<- sapply(1:k.max,function(k){kmeans(epi.results.3r[,2:6], k)$tot.withinss})
+plot(1:k.max,wss, type= "b", xlab = "Number of clusters(k)", ylab = "Within cluster
+sum of squares", main="WCSS for model 1")
+wss<- sapply(1:k.max,function(k){kmeans(epi.results.3r2[,2:6], k)$tot.withinss})
+plot(1:k.max,wss, type= "b", xlab = "Number of clusters(k)", ylab = "Within cluster
+sum of squares", main="WCSS for model 2")
+```
+The data displayed above indicates that the first model is higher performing than the first model. This is because the first model has lower sum of squares regardless of how the data is clustered, as indicated on the y-axis, when compared to the second model.

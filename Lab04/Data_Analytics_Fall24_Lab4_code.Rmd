@@ -105,7 +105,7 @@ table(prediction2.pca, wine[,1], dnn=list('predicted','actual'))
 # Drop the variables least contributing to the 1st PC and rerun PCA.
 ```{r}
 wine.pc$rotation[,1]
-wine2 <- wine[,c(3:7,9:11)]
+wine2 <- wine[,c(1,3:7,9:11)]
 wine2.pc <- prcomp(wine2[,-1], center = TRUE, scale. = TRUE)
 ```
 Because Alcohol and Color Intensity are the least contributing to the 1st PC, I will drop this and rerun PCA.
@@ -115,5 +115,76 @@ Because Alcohol and Color Intensity are the least contributing to the 1st PC, I 
 ```{r}
 classifier3.pca <- naiveBayes(wine2.pc$x[,1:3], wine2[,1])
 prediction3.pca <- predict(classifier3.pca, wine2.pc$x[,1:3])
-table(prediction3.pca, wine3[,1], dnn=list('predicted','actual'))
+table(prediction3.pca, wine[,1], dnn=list('predicted','actual'))
 ```
+
+# Compare the 3 classification models using contingency tables and prevision/recall/f1metrics
+```{r}
+table(prediction.raw, wine[,1], dnn=list('predicted','actual'))
+table(prediction2.pca, wine[,1], dnn=list('predicted','actual'))
+table(prediction3.pca, wine[,1], dnn=list('predicted','actual'))
+```
+
+
+# Compare the 3 classification models using prevision/recall/f1metrics
+```{r}
+# getting the precision/recall/f1 for the first classification model
+cm.1 = as.matrix(table(Actual = wine$Type, Predicted = prediction.raw))
+
+cm.1
+
+n = sum(cm.1) # number of instances
+nc = nrow(cm.1) # number of classes
+diag = diag(cm.1) # number of correctly classified instances per class 
+rowsums = apply(cm.1, 1, sum) # number of instances per class
+colsums = apply(cm.1, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.1 = diag / rowsums 
+precision.1 = diag / colsums
+f1.1 = 2 * precision.1 * recall.1 / (precision.1 + recall.1) 
+
+data.frame(precision.1, recall.1, f1.1)
+
+
+# getting the precision/recall/f1 for the second classification model
+cm.2 = as.matrix(table(Actual = wine$Type, Predicted = prediction2.pca))
+
+cm.2
+
+n = sum(cm.2) # number of instances
+nc = nrow(cm.2) # number of classes
+diag = diag(cm.2) # number of correctly classified instances per class 
+rowsums = apply(cm.2, 1, sum) # number of instances per class
+colsums = apply(cm.2, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.2 = diag / rowsums 
+precision.2 = diag / colsums
+f1.2 = 2 * precision.2 * recall.2 / (precision.2 + recall.2) 
+
+data.frame(precision.2, recall.2, f1.2)
+
+
+# getting the precision/recall/f1 for the third classification model
+cm.3 = as.matrix(table(Actual = wine$Type, Predicted = prediction3.pca))
+
+cm.3
+
+n = sum(cm.3) # number of instances
+nc = nrow(cm.3) # number of classes
+diag = diag(cm.3) # number of correctly classified instances per class 
+rowsums = apply(cm.3, 1, sum) # number of instances per class
+colsums = apply(cm.3, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.3 = diag / rowsums 
+precision.3 = diag / colsums
+f1.3 = 2 * precision.3 * recall.3 / (precision.3 + recall.3) 
+
+data.frame(precision.3, recall.3, f1.3)
+```
+It appears that while the naiveBayes after PCA processing and dropping the fields that yield the worst results overall. The naiveBayes with the first 3 PCAs and the naiveBayes with the raw data appear to have some tradeoff, so whichever Type is most important to the client to get correct would sway my decision on which classifier to deploy. That being said, with the numbers as high as they are it is important to be carefull of overfitting.

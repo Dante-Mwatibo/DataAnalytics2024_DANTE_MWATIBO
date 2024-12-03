@@ -1,0 +1,189 @@
+```{r setup, include=FALSE}
+# Required R package installation:
+
+# These will install packages if they are not already installed
+if (!require("devtools")) {
+   install.packages("devtools")
+   library(devtools)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+if (!require("gplots")) {
+   install.packages("gplots")
+   library(gplots)
+}
+if (!require("ggbiplot")) {
+   devtools::install_git("https://github.com/vqv/ggbiplot.git")
+   library(ggbiplot)
+}
+  if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+  }
+
+  if (!require("ggdendro")) {
+   install.packages("ggdendro")
+   library(ggdendro)
+  }
+  if (!require("plotly")) {
+   install.packages("plotly")
+   library(plotly)
+  }
+  if (!require("heatmaply")) {
+   install.packages("heatmaply")
+   library(heatmaply)
+  }
+
+if (!require("pheatmap")) {
+ install.packages("pheatmap")
+  library(pheatmap)
+  }
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggfortify)
+library(e1071)
+library("caret")
+library(class)
+library(psych)
+library(ggbiplot)
+library(utils)
+
+# PCA with iris dataset
+wine <- read.csv("wine.data")
+names(wine) <- c("Type","Alcohol","Malic acid","Ash","Alcalinity of ash","Magnesium","Total phenols","Flavanoids","Nonflavanoid Phenols","Proanthocyanins","Color Intensity","Hue","Od280/od315 of diluted wines","Proline")
+head(wine)
+
+wine$Type <- as.factor(wine$Type)
+
+wine <- wine[,-c(4,5,10)]
+
+pairs.panels(wine[,-1],gap = 0,bg = c("red", "yellow", "blue")[wine$Type],pch=21)
+```
+
+
+# Using the Wine Dataset:
+## Train 2 SVM classifiers to predict the type of wine using a subset of the other 13 variables. You may choose the subset based on previous analysis. One using a linear kernel and another of your choice.
+```{r}
+# svm 1
+s <- sample(nrow(wine), 130)
+svm1 <- tune.svm(Type~., data = wine[s,1:8], kernel = 'linear',gamma = seq(1/2^nrow(wine),1, .01), cost = 2^seq(-6, 4, 2))
+svm1
+
+# svm 2
+svm2 <- tune.svm(Type~., data = wine[s,1:8], kernel = 'polynomial',gamma = seq(1/2^nrow(wine),1, .01), cost = 2^seq(-6, 4, 2))
+svm2
+```
+
+
+## Choose another classification method (kNN, NaiveBayes, etc.) and train a classifier based on the same features
+```{r}
+classifier <- naiveBayes(wine[,2:8], wine[,1])
+```
+
+
+## Compare the performance of the 2 models (Precision, Recall, F1)
+```{r}
+# getting the precision/recall/f1 for svm 1
+svm1.pred <- predict(svm1$best.model, wine[,1:8])
+cm.svm1 = as.matrix(table(Actual = wine$Type, Predicted = svm1.pred))
+
+cm.svm1
+
+n = sum(cm.svm1) # number of instances
+nc = nrow(cm.svm1) # number of classes
+diag = diag(cm.svm1) # number of correctly classified instances per class 
+rowsums = apply(cm.svm1, 1, sum) # number of instances per class
+colsums = apply(cm.svm1, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.svm1 = diag / rowsums 
+precision.svm1 = diag / colsums
+f1.svm1 = 2 * precision.svm1 * recall.svm1 / (precision.svm1 + recall.svm1) 
+
+data.frame(precision.svm1, recall.svm1, f1.svm1)
+
+
+# getting the precision/recall/f1 for svm 2
+svm2.pred <- predict(svm2$best.model, wine[,1:8])
+cm.svm2 = as.matrix(table(Actual = wine$Type, Predicted = svm2.pred))
+
+cm.svm2
+
+n = sum(cm.svm2) # number of instances
+nc = nrow(cm.svm2) # number of classes
+diag = diag(cm.svm2) # number of correctly classified instances per class 
+rowsums = apply(cm.svm2, 1, sum) # number of instances per class
+colsums = apply(cm.svm2, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.svm2 = diag / rowsums 
+precision.svm2 = diag / colsums
+f1.svm2 = 2 * precision.svm2 * recall.svm2 / (precision.svm2 + recall.svm2) 
+
+data.frame(precision.svm2, recall.svm2, f1.svm2)
+
+
+# getting the precision/recall/f1 for classifier
+class.pred <- predict(classifier, wine[,1:8])
+cm.class = as.matrix(table(Actual = wine$Type, Predicted = class.pred))
+
+cm.class
+
+n = sum(cm.class) # number of instances
+nc = nrow(cm.class) # number of classes
+diag = diag(cm.class) # number of correctly classified instances per class 
+rowsums = apply(cm.class, 1, sum) # number of instances per class
+colsums = apply(cm.class, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.class = diag / rowsums 
+precision.class = diag / colsums
+f1.class = 2 * precision.class * recall.class / (precision.class + recall.class) 
+
+data.frame(precision.class, recall.class, f1.class)
+```
+While there are trade-offs between the svm1 with a linear kernel and the classifier results, the data shows a strictly superior performance from the svm2 with a polynomial kernal. While this may appear to be a good result, it is important to note that when performance metrics get this high there is a higher likelihood of the model having overfitted the data presented.
+
+# Using the NY housing dataset
+## Train a SVM regression model to predict PRICE based on Square Footage and plot predicted price vs. real price.
+```{r}
+# loading in the data
+ny_house <- read.csv("NY-House-Dataset.csv")
+ny_house <- ny_house[ny_house[,"PRICE"] < 100000000,]
+# svm regression model
+s <- sample(nrow(ny_house), 4000)
+svm.house <- svm(PRICE~., data = ny_house[s,c("PRICE", "PROPERTYSQFT")], kernel = 'linear', type="eps-regression")
+
+# plotting the predicted price vs. the real price
+predicted.price <- predict(svm.house, ny_house[,"PROPERTYSQFT"])
+
+ggplot(data=ny_house) +
+  geom_point(aes(x=PROPERTYSQFT, y=PRICE, color='red'))+
+  geom_line(aes(x=PROPERTYSQFT, y=predicted.price, color='blue'))
+```
+
+
+# Drop the variables least contributing to the 1st PC and rerun PCA.
+```{r}
+house.lm <- lm(PRICE~PROPERTYSQFT, ny_house)
+
+# plotting the predicted price vs. the real price
+house.lm.x <- c(0, max(ny_house[,"PROPERTYSQFT"]))
+house.lm.y <- c(house.lm$coefficients["(Intercept)"], max(ny_house[,"PROPERTYSQFT"]) * house.lm$coefficients["PROPERTYSQFT"] + house.lm$coefficients["(Intercept)"])
+house.lm.line <- data.frame(house.lm.x, house.lm.y)
+  ggplot(data=ny_house) +
+  geom_point(aes(x=PROPERTYSQFT, y=PRICE, color='red')) +
+  geom_line(data=house.lm.line, aes(x=house.lm.x, y=house.lm.y, color='blue'))
+```

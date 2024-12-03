@@ -1,0 +1,119 @@
+# Principal Component Analysis (PCA)
+
+```{r setup, include=FALSE}
+# Required R package installation:
+
+# These will install packages if they are not already installed
+if (!require("devtools")) {
+   install.packages("devtools")
+   library(devtools)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+if (!require("gplots")) {
+   install.packages("gplots")
+   library(gplots)
+}
+if (!require("ggbiplot")) {
+   devtools::install_git("https://github.com/vqv/ggbiplot.git")
+   library(ggbiplot)
+}
+  if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+  }
+
+  if (!require("ggdendro")) {
+   install.packages("ggdendro")
+   library(ggdendro)
+  }
+  if (!require("plotly")) {
+   install.packages("plotly")
+   library(plotly)
+  }
+  if (!require("heatmaply")) {
+   install.packages("heatmaply")
+   library(heatmaply)
+  }
+
+if (!require("pheatmap")) {
+ install.packages("pheatmap")
+  library(pheatmap)
+  }
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(ggfortify)
+library(e1071)
+library(class)
+library(psych)
+library(ggbiplot)
+library(utils)
+
+# PCA with iris dataset
+wine <- read.csv("wine.data")
+names(wine) <- c("Type","Alcohol","Malic acid","Ash","Alcalinity of ash","Magnesium","Total phenols","Flavanoids","Nonflavanoid Phenols","Proanthocyanins","Color Intensity","Hue","Od280/od315 of diluted wines","Proline")
+head(wine)
+
+wine$Type <- as.factor(wine$Type)
+
+wine <- wine[,-c(4,5,10)]
+
+pairs.panels(wine[,-1],gap = 0,bg = c("red", "yellow", "blue")[wine$Type],pch=21)
+```
+
+
+# Compute the PCs and plot the dataset using the 1st and 2nd PC
+```{r}
+wine.pc <- prcomp(wine[,-1], center = TRUE, scale. = TRUE)
+ggbiplot(as.data.frame(wine.pc$x[,c(1,2)]), labels=rownames(wine),
+                var.axes=TRUE, obs.scale=1)
+ggtitle("Consumer Data Projected on PC1 and PC2 ")
+```
+
+
+# Identify the variables that contribute the most to the 1st PC
+```{r}
+wine.pc$rotation[,1]
+```
+According to the data the variables that contribute the most to the 1st PC are: flavanoids, total phenols, and Od280/od315 of diluted wines. This is because they have the highest absolute value in wine.pc$rotation, which means they have the highest influence in determining the number PC1 comes out to
+
+
+# Train a classifier model to predict wine type using the 13 attributes
+```{r}
+classifier.raw <- naiveBayes(wine[,-1], wine[,1])
+prediction.raw <- predict(classifier.raw, wine[,-1])
+table(prediction.raw, wine[,1], dnn=list('predicted','actual'))
+```
+
+# Train a classifier model to predict wine type using the data projected into the first 3 PCs.
+```{r}
+classifier2.pca <- naiveBayes(wine.pc$x[,1:3], wine[,1])
+prediction2.pca <- predict(classifier2.pca, wine.pc$x[,1:3])
+table(prediction2.pca, wine[,1], dnn=list('predicted','actual'))
+```
+
+
+# Drop the variables least contributing to the 1st PC and rerun PCA.
+```{r}
+wine.pc$rotation[,1]
+wine2 <- wine[,c(3:7,9:11)]
+wine2.pc <- prcomp(wine2[,-1], center = TRUE, scale. = TRUE)
+```
+Because Alcohol and Color Intensity are the least contributing to the 1st PC, I will drop this and rerun PCA.
+
+
+# Train a classifier model to predict wine type using the data projected into the first 3 PCs.
+```{r}
+classifier3.pca <- naiveBayes(wine2.pc$x[,1:3], wine2[,1])
+prediction3.pca <- predict(classifier3.pca, wine2.pc$x[,1:3])
+table(prediction3.pca, wine3[,1], dnn=list('predicted','actual'))
+```

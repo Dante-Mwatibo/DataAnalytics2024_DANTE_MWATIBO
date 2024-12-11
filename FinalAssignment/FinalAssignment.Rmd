@@ -1,0 +1,302 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+```{r setup, include=FALSE}
+# Required R package installation:
+
+# These will install packages if they are not already installed
+if (!require("devtools")) {
+   install.packages("devtools")
+   library(devtools)
+}
+
+if (!require("ggplot2")) {
+   install.packages("ggplot2")
+   library(ggplot2)
+}
+if (!require("knitr")) {
+   install.packages("knitr")
+   library(knitr)
+}
+if (!require("gplots")) {
+   install.packages("gplots")
+   library(gplots)
+}
+if (!require("ggbiplot")) {
+   devtools::install_git("https://github.com/vqv/ggbiplot.git")
+   library(ggbiplot)
+}
+  if (!require("dplyr")) {
+   install.packages("dplyr")
+   library(dplyr)
+  }
+
+  if (!require("ggdendro")) {
+   install.packages("ggdendro")
+   library(ggdendro)
+  }
+  if (!require("plotly")) {
+   install.packages("plotly")
+   library(plotly)
+  }
+  if (!require("heatmaply")) {
+   install.packages("heatmaply")
+   library(heatmaply)
+  }
+
+if (!require("pheatmap")) {
+ install.packages("pheatmap")
+  library(pheatmap)
+}
+library(ggfortify)
+library(rpart)
+library(rpart.plot)
+library(e1071)
+library(class)
+library(psych)
+library(ggbiplot)
+library(caret)
+library(utils)
+
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Loading in the data
+```{r}
+season.avgs.88 <- read.csv('SeasonAvgs - 87-88.csv')
+season.avgs.91 <- read.csv('SeasonAvgs - 90-91.csv')
+season.avgs.96 <- read.csv('SeasonAvgs - 95-96.csv')
+season.avgs.00 <- read.csv('SeasonAvgs - 99-00.csv')
+season.avgs.08 <- read.csv('SeasonAvgs - 07-08.csv')
+season.avgs.09 <- read.csv('SeasonAvgs - 08-09.csv')
+season.avgs.10 <- read.csv('SeasonAvgs - 09-10.csv')
+season.avgs.12 <- read.csv('SeasonAvgs - 11-12.csv')
+season.avgs.13 <- read.csv('SeasonAvgs - 12-13.csv')
+season.avgs.14 <- read.csv('SeasonAvgs - 13-14.csv')
+season.avgs.16 <- read.csv('SeasonAvgs - 15-16.csv')
+season.avgs.17 <- read.csv('SeasonAvgs - 16-17.csv')
+season.avgs.18 <- read.csv('SeasonAvgs - 17-18.csv')
+season.avgs.20 <- read.csv('SeasonAvgs - 19-20.csv')
+season.avgs.22 <- read.csv('SeasonAvgs - 21-22.csv')
+season.avgs.23 <- read.csv('SeasonAvgs - 22-23.csv')
+season.avgs.24 <- read.csv('SeasonAvgs - 23-24.csv')
+
+# adding the year of the season to each player's name
+season.avgs.88$Player <- paste0(season.avgs.88$Player, "_88")  
+season.avgs.91$Player <- paste0(season.avgs.91$Player, "_91")  
+season.avgs.96$Player <- paste0(season.avgs.96$Player, "_96")  
+season.avgs.00$Player <- paste0(season.avgs.00$Player, "_00")  
+season.avgs.08$Player <- paste0(season.avgs.08$Player, "_08")  
+season.avgs.09$Player <- paste0(season.avgs.09$Player, "_09")  
+season.avgs.10$Player <- paste0(season.avgs.10$Player, "_10")  
+season.avgs.12$Player <- paste0(season.avgs.12$Player, "_12")  
+season.avgs.13$Player <- paste0(season.avgs.13$Player, "_13")  
+season.avgs.14$Player <- paste0(season.avgs.14$Player, "_14")  
+season.avgs.16$Player <- paste0(season.avgs.16$Player, "_16")  
+season.avgs.17$Player <- paste0(season.avgs.17$Player, "_17")  
+season.avgs.18$Player <- paste0(season.avgs.18$Player, "_18")  
+season.avgs.20$Player <- paste0(season.avgs.20$Player, "_20")  
+season.avgs.22$Player <- paste0(season.avgs.22$Player, "_22")  
+season.avgs.23$Player <- paste0(season.avgs.23$Player, "_23")  
+season.avgs.24$Player <- paste0(season.avgs.24$Player, "_24") 
+
+# collecting all of them into one data.frame
+season.avgs.all <- rbind(season.avgs.88, 
+                         season.avgs.91, 
+                         season.avgs.96, 
+                         season.avgs.00, 
+                         season.avgs.08, 
+                         season.avgs.09, 
+                         season.avgs.10, 
+                         season.avgs.12, 
+                         season.avgs.13, 
+                         season.avgs.14, 
+                         season.avgs.16, 
+                         season.avgs.17, 
+                         season.avgs.18, 
+                         season.avgs.20, 
+                         season.avgs.22, 
+                         season.avgs.23, 
+                         season.avgs.24)
+
+# filtering by players who played more than 30 minutes a game
+mvp.t5.season.avgs.all <- season.avgs.all[season.avgs.all$Rankings > 0,]
+# making sure this doesn't exclude any players that were top 5 in MVP voting
+nrow(mvp.t5.season.avgs.all[mvp.t5.season.avgs.all$MP > 30,]) == nrow(mvp.t5.season.avgs.all)
+season.avgs.all.f <- season.avgs.all[season.avgs.all$MP > 30,]
+
+# removing the irrelevant rows
+season.avgs.all.f <- season.avgs.all.f[,c(-3, -4, -5, -6, -7, -31, -32)]
+mvp.t5.season.avgs.all <- mvp.t5.season.avgs.all[,c(-3, -4, -5, -6, -7, -31, -32)]
+
+# cleaning the data of any rows with NA values 
+# checking to make sure we aren't removing any top 5 MVP voted players first
+nrow(na.omit(mvp.t5.season.avgs.all)) == nrow(mvp.t5.season.avgs.all)
+# there appears to be a row that's all NAs for some reason. in this. Since that row is irrelevant we'll remove all rows with NA values
+season.avgs.all.f <- na.omit(season.avgs.all.f)
+mvp.t5.season.avgs.all <- na.omit(mvp.t5.season.avgs.all)
+```
+
+
+# Exploratory Analysis
+```{r}
+# creating the dataframe to plot for Effective Field Goal Percentage
+eFG.analysis <- data.frame(
+  Category = c(rep("Entire League", nrow(season.avgs.all.f)), rep("MVP Candidates", nrow(mvp.t5.season.avgs.all))),
+  Values = c(season.avgs.all.f$eFG., mvp.t5.season.avgs.all$eFG.)
+)
+
+# Plotting it
+ggplot(eFG.analysis) +
+  geom_boxplot(aes(x = Category, y = Values, fill = Category)) +
+  labs(title = "Effective Field Goal % Leaguewide vs MVP Candidates", x = "Category", y = "Values")
+
+# creating the dataframe to plot for Assists
+AST.analysis <- data.frame(
+  Category = c(rep("Entire League", nrow(season.avgs.all.f)), rep("MVP Candidates", nrow(mvp.t5.season.avgs.all))),
+  Values = c(season.avgs.all.f$AST, mvp.t5.season.avgs.all$AST)
+)
+
+# Plotting it
+ggplot(AST.analysis) +
+  geom_boxplot(aes(x = Category, y = Values, fill = Category)) +
+  labs(title = "Average Assists Leaguewide vs MVP Candidates", x = "Category", y = "Values")
+
+# creating the dataframe to plot for Total Rebounds
+TRB.analysis <- data.frame(
+  Category = c(rep("Entire League", nrow(season.avgs.all.f)), rep("MVP Candidates", nrow(mvp.t5.season.avgs.all))),
+  Values = c(season.avgs.all.f$TRB, mvp.t5.season.avgs.all$TRB)
+)
+
+# Plotting it
+ggplot(TRB.analysis) +
+  geom_boxplot(aes(x = Category, y = Values, fill = Category)) +
+  labs(title = "Average Total Rebounds Leaguewide vs MVP Candidates", x = "Category", y = "Values")
+
+# creating the dataframe to plot for Average Points
+PTS.analysis <- data.frame(
+  Category = c(rep("Entire League", nrow(season.avgs.all.f)), rep("MVP Candidates", nrow(mvp.t5.season.avgs.all))),
+  Values = c(season.avgs.all.f$PTS, mvp.t5.season.avgs.all$PTS)
+)
+
+# Plotting it
+ggplot(PTS.analysis) +
+  geom_boxplot(aes(x = Category, y = Values, fill = Category)) +
+  labs(title = "Average Total Points Leaguewide vs MVP Candidates", x = "Category", y = "Values")
+
+# use this to see where MVPs stack up on all time best points, assists, rebounds per game
+season.avgs.all.f.big3Stats <- season.avgs.all.f[, c("Player", "Rankings", "PTS", "AST", "TRB")]
+```
+
+# Linear Regression Model Creation and plotting
+```{r}
+# create the linear regression model using poisson distribution (we need to remove player but hopefully we can get it back)
+mvp.rankings.lm <- glm(Rankings ~., data=season.avgs.all.f[,-2], family=poisson)
+
+# cleaning fitted vaules so the numbers are sequential instead of whatever arbitrary numberng system it decided
+names(mvp.rankings.lm$fitted.values) <- seq_along(mvp.rankings.lm$fitted.values)
+
+# creating a dataframe with the resulting values and the color of the true values
+colors <- c("0" = "black", "1" = "red", "2"= "orange", "3" = "forestgreen", "4"= "blue", "5" = "violet")
+colors <- colors[as.character(season.avgs.all.f[,"Rankings"])]
+mvp.rankings.plot <- data.frame(true.rankings = season.avgs.all.f$Rankings, predicted.rankings = mvp.rankings.lm$fitted.values, Colors=colors)
+
+# plotting the results
+ggplot(mvp.rankings.plot) +
+  geom_point(aes(x=true.rankings, y=predicted.rankings), color=colors) +
+  ggtitle("Predicted vs True MVP Rankings Predicted by Linear Regression w/ Poisson family")
+
+# get the coefficients for that model
+stats.importance <- data.frame(stats = names(mvp.rankings.lm$coefficients[2:24]),
+                      coeff = abs(mvp.rankings.lm$coefficients[2:24]))
+# graph all relevant features
+ggplot(stats.importance, aes(x=stats, y=coeff)) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  coord_flip() +  # Flip coordinates for horizontal bars
+  labs(title = "Logistic Regression w/ Poisson Coefficients",
+       x = "Statistics",
+       y = "Coefficient Value") +
+  theme_minimal()
+
+
+# create the linear regression model using gaussian distribution(we need to remove player but hopefully we can get it back)
+mvp.rankings.lm.g <- glm(Rankings ~., data=season.avgs.all.f[,-2], family=gaussian)
+
+# cleaning fitted vaules so the numbers are sequential instead of whatever arbitrary numberng system it decided
+names(mvp.rankings.lm.g$fitted.values) <- seq_along(mvp.rankings.lm.g$fitted.values)
+
+# creating a dataframe with the resulting values and the color of the true values
+colors <- c("0" = "black", "1" = "red", "2"= "orange", "3" = "forestgreen", "4"= "blue", "5" = "violet")
+colors <- colors[as.character(season.avgs.all.f[,"Rankings"])]
+mvp.rankings.g.plot <- data.frame(true.rankings = season.avgs.all.f$Rankings, predicted.rankings = mvp.rankings.lm.g$fitted.values, Colors=colors)
+
+# plotting the results
+ggplot(mvp.rankings.g.plot) +
+  geom_point(aes(x=true.rankings, y=predicted.rankings), color=colors) +
+  ggtitle("Predicted vs True MVP Rankings Predicted by Linear Regression w/ Gaussian family")
+```
+
+
+# Decision Tree Model Creation and Plotting
+```{r}
+# First need to turn all the the non-5's to "non-MVP" and the 5's to "MVP"
+mvp.t5.season.avgs.all2 <- mvp.t5.season.avgs.all
+mvp.t5.season.avgs.all2$Rankings <- factor(ifelse(mvp.t5.season.avgs.all2$Rankings == 5, "MVP", "no MVP"))
+
+mvp.rankings.dt.mod <- rpart(Rankings~ ., data=mvp.t5.season.avgs.all2[,-2], method = "class", cp= 0.0001, minsplit=11)
+
+rpart.plot(mvp.rankings.dt.mod, extra=104)
+
+mvp.t5.season.avgs.all2[mvp.t5.season.avgs.all2$FG >= 10 &                                                         mvp.t5.season.avgs.all2$TRB >= 12,"Player"]
+mvp.t5.season.avgs.all2[mvp.t5.season.avgs.all2$Player == "Nikola Jokić_24","Rankings"]
+```
+
+# Random Forest Model Creation and Plotting
+```{r}
+mvp.rankings.rf.mod <- train(Rankings~ .,data=mvp.t5.season.avgs.all2[,-2], method = "rf", prox = TRUE)
+
+########################## RF ##############################
+mvp.rf.pred <- predict(mvp.rankings.rf.mod, season.avgs.all.f[,c(-1,-2)])
+season.avgs.all.f.binary <- season.avgs.all.f
+season.avgs.all.f.binary$Rankings <- factor(ifelse(season.avgs.all.f.binary$Rankings == 5, "MVP", "no MVP"))
+
+cm.class = as.matrix(table(Actual = season.avgs.all.f.binary$Rankings, Predicted = mvp.rf.pred))
+
+cm.class
+
+n = sum(cm.class) # number of instances
+nc = nrow(cm.class) # number of classes
+diag = diag(cm.class) # number of correctly classified instances per class 
+rowsums = apply(cm.class, 1, sum) # number of instances per class
+colsums = apply(cm.class, 2, sum) # number of predictions per class
+p = rowsums / n # distribution of instances over the actual classes
+q = colsums / n # distribution of instances over the predicted 
+
+recall.class = diag / rowsums 
+precision.class = diag / colsums
+f1.class = 2 * precision.class * recall.class / (precision.class + recall.class)
+
+data.frame(precision.class, recall.class, f1.class)
+
+# feature analysis
+# ploting feature analysis
+# get the coefficients for that model
+stat.importance.rf <- varImp(mvp.rankings.rf.mod)
+# graph all relevant features
+ggplot(stat.importance.rf$importance, aes(x=Overall, y=rownames(stat.importance.rf$importance))) +
+  geom_bar(stat = "identity", fill = "lightblue") +
+  labs(title = "Random Forest Classifier Coefficients",
+       x = "Coefficient Value",
+       y = "Statistics") +
+  theme_minimal()
+```
+# Michael Jordan's '88 season
+```{r}
+season.avgs.88[1,c("Player", "FG", "PTS", "eFG.", "FGA", "X2P.")]
+```
+On the metrics, it appears that the model performs significantly worse across the board for all 3 metrics across all 3 tax classifications. Because of this, I'm not inclined to say the previous model created was a model that could be extrapolated to the entirety of NYC. In particular the buildings with tax classifications of 4 performed substantially worse in the 5 borough dataset in comparison to the 1 borough dataset. It's difficult to tell the matrix values based off of raw numbers, which is why we use metrics that are proportions which can be compared easily between datasets of different sizes.
+
+# c). Discuss any observations you had about the datasets/ variables, other data in the dataset and/or your confidence in the result.
+One thing I noticed about this dataset is that it needs a lot of cleaning. when people say 80% of Data Analytics is cleaning and the other 20% is actual analysis I'm realizing this is what they mean. I would love to work on this data though and weigh the pros and cons of how to fill in the columns with NA volues, as I do believe they are valuable, however due to the nature of this being a school assignment I didn't have the time to do so. There is also just a LOT of data, which is really good! However the data is very sparse with lots of outliers, which I thought would skew the models. What I found instead is the models actually perform better with the outliers than without, which was interesting and I'm not sure why that is the case.
